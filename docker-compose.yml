@@ -1,0 +1,61 @@
+version: "3.3"
+
+networks:
+  subnet:
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+
+services:
+  db:
+    image: mysql:5.7
+    container_name: db
+    environment:
+      MYSQL_ROOT_PASSWORD: pass
+      MYSQL_DATABASE: creation
+      MYSQL_USER: admin
+      MYSQL_PASSWORD: pass
+    volumes:
+      - ./db:/docker-entrypoint-initdb.d
+      - ./db:/var/www/db
+      - ./config/mysql/mysql-custom.cnf:/etc/mysql/conf.d/mysql-custom.cnf
+    networks:
+      subnet:
+        ipv4_address: 172.20.0.5
+
+  web:
+    image: robertbourne/php-extras-apache:7.3.2
+    build:
+      context: ./sites
+    container_name: webserver
+    links:
+      - db
+    volumes:
+      - ./sites:/var/www/html
+      - ./config/php/php.ini:/usr/local/etc/php/php.ini
+      - ./logs/apache2:/var/log/apache2
+      - ./config/vhosts:/etc/apache2/sites-enabled
+    ports:
+      - "80:80"
+    networks:
+      subnet:
+        ipv4_address: 172.20.0.6
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: 'phpmyadmin'
+    volumes:
+      - ./db/mysql:/var/lib/mysql
+      - ./logs/mysql:/var/log/mysql
+    links:
+      - db
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+    ports:
+      - '8081:80'
+    volumes:
+      - ./config/phpmyadmin/config.user.inc.php:/etc/phpmyadmin/config.user.inc.php
+    networks:
+      subnet:
+        ipv4_address: 172.20.0.7
